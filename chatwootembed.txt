@@ -308,9 +308,9 @@
         if (location.pathname.includes('/settings') || location.pathname.includes('/super_admin')) return;
         if (document.getElementById('brk-menu-participating')) return;
 
-        // Encontra exatamente o item "Não atendidas" para colocar o nosso logo abaixo dele
-        let unattendedItem = document.querySelector('li[name="Unattended"]') || (document.querySelector('a[title="Não atendidas"]') ? document.querySelector('a[title="Não atendidas"]').closest('li') : null);
-        if (!unattendedItem) return;
+        // Encontra exatamente o item "Todas as conversas" (que nunca some) para colocar nosso botão logo abaixo dele
+        let allConvsItem = document.querySelector('li[name="All"]') || (document.querySelector('a[title="Todas as conversas"]') ? document.querySelector('a[title="Todas as conversas"]').closest('li') : null);
+        if (!allConvsItem) return;
         
         isInjecting = true;
 
@@ -338,7 +338,7 @@
                 e.preventDefault();
                 
                 // Remove as classes de highlight (active) do botão nativo selecionado.
-                let listUl = unattendedItem.closest('ul');
+                let listUl = allConvsItem.closest('ul');
                 if (listUl) listUl.querySelectorAll('a').forEach(el => {
                     el.classList.remove('text-n-blue-text', 'bg-n-alpha-2', 'active');
                 });
@@ -349,8 +349,8 @@
                 openParticipatingInbox(userId);
             });
 
-            // Insere cirurgicamente logo após o item "Não atendidas"
-            unattendedItem.insertAdjacentElement('afterend', li);
+            // Insere cirurgicamente logo após o item "Todas as conversas"
+            allConvsItem.insertAdjacentElement('afterend', li);
             isInjecting = false;
         });
     }

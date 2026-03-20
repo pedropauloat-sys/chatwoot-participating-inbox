@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="conv-snippet">${conv.lastMessage}</div>
                 </div>
                 <div style="text-align:right">
-                    <a href="${conv.url}" target="_blank" class="btn btn-primary">Acompanhar</a>
+                    <button onclick="window.parent.postMessage({action:'brk_navigate', url:'${conv.url}'}, '*')" class="btn btn-primary">Acompanhar</button>
                 </div>
             </div>`;
         });

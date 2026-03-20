@@ -78,7 +78,7 @@ async function handleAPI(req, res, url, method) {
             id: conv.id,
             contact: conv.meta.sender.name,
             lastMessage: conv.messages[0]?.content || 'Mídia / Anexo',
-            url: `${CHATWOOT_URL}/app/accounts/${ACCOUNT_ID}/conversations/${conv.id}`
+            url: `/app/accounts/${ACCOUNT_ID}/conversations/${conv.id}`
           });
         }
       }));
