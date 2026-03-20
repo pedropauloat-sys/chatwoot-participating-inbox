@@ -1,1 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conversas Participando</title>
+<style>
+  /* ── SEU DESIGN SYSTEM ORIGINAL ── */
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0f172a;--bg2:#1a2233;--bg3:#1e2a3a;--border:#2d3a4d;--text:#e8eaf6;--sub:#8b95a5;--accent:#1f93ff;--danger:#ef4444;--success:#22c55e;--input:#131a27}
+  body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .container{max-width:900px;margin:0 auto;padding:24px}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+  .header h1{font-size:20px;display:flex;align-items:center;gap:10px}
+  .header h1 em{font-size:24px;font-style:normal}
+  .badge{font-size:11px;background:var(--bg3);padding:2px 8px;border-radius:10px;color:var(--sub)}
+  .btn{border:none;border-radius:8px;padding:10px 20px;font:600 13px -apple-system,system-ui,sans-serif;cursor:pointer;transition:all .15s; text-decoration: none; display: inline-block;}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{opacity:.9}
+  .empty{text-align:center;padding:60px 20px}
+  .empty .icon{font-size:48px;margin-bottom:12px}
+  .empty .title{font-size:16px;font-weight:600;margin-bottom:6px}
+  .empty .sub{font-size:13px;color:var(--sub)}
+  
+  /* ── ADAPTAÇÃO PARA A LISTA DE CONVERSAS ── */
+  .table-header{display:grid;grid-template-columns:80px 1fr 150px;gap:12px;padding:8px 14px;font-size:11px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.04em}
+  .table-row{display:grid;grid-template-columns:80px 1fr 150px;gap:12px;padding:16px 14px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:8px;align-items:center;transition:background .15s, border .1s}
+  .table-row:hover{background:var(--bg2)}
+  .conv-id{font-weight:700;color:var(--accent);font-size:14px;}
+  .conv-contact{font-weight:600;font-size:14px;margin-bottom:4px;color:var(--text)}
+  .conv-snippet{font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1><em>💼</em> Participando</h1>
+    <span class="badge" id="badge-count">Carregando...</span>
+  </div>
+  
+  <div id="list">
+    </div>
+</div>
 
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    // Captura o ID do usuário passado via URL pelo iFrame do Chatwoot
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('userId');
+
+    const listEl = document.getElementById('list');
+    const badgeEl = document.getElementById('badge-count');
+
+    if (!userId) {
+        listEl.innerHTML = `
+            <div class="empty">
+                <div class="icon">⚠️</div>
+                <div class="title">Usuário não identificado</div>
+                <div class="sub">Não foi possível carregar as conversas. Atualize o painel do Chatwoot.</div>
+            </div>`;
+        badgeEl.textContent = 'Erro';
+        return;
+    }
+
+    try {
+        // Faz a chamada para a nossa própria API segura (o server.js que fizemos na etapa anterior)
+        const response = await fetch(`/api/conversations/participating/${userId}`);
+        const data = await response.json();
+        
+        badgeEl.textContent = `${data.length} conversas`;
+
+        if (data.length === 0) {
+            listEl.innerHTML = `
+                <div class="empty">
+                    <div class="icon">📭</div>
+                    <div class="title">Caixa limpa!</div>
+                    <div class="sub">Você não está participando de nenhuma conversa aberta no momento.</div>
+                </div>`;
+            return;
+        }
+
+        let html = '<div class="table-header"><span>TICKET</span><span>CONTATO & MENSAGEM</span><span style="text-align:right">AÇÃO</span></div>';
+
+        data.forEach(conv => {
+            html += `
+            <div class="table-row">
+                <div class="conv-id">#${conv.id}</div>
+                <div style="min-width:0">
+                    <div class="conv-contact">${conv.contact}</div>
+                    <div class="conv-snippet">${conv.lastMessage}</div>
+                </div>
+                <div style="text-align:right">
+                    <a href="${conv.url}" target="_parent" class="btn btn-primary">Acompanhar</a>
+                </div>
+            </div>`;
+        });
+
+        listEl.innerHTML = html;
+
+    } catch (error) {
+        console.error('Falha ao carregar as conversas:', error);
+        listEl.innerHTML = `
+            <div class="empty">
+                <div class="icon">❌</div>
+                <div class="title">Erro de conexão</div>
+                <div class="sub">Falha ao buscar dados na API. Verifique os logs do servidor.</div>
+            </div>`;
+        badgeEl.textContent = 'Erro';
+    }
+});
+</script>
+</body>
+</html>
