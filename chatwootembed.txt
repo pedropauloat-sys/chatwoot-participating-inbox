@@ -6,7 +6,7 @@
     window.__BRK_PARTICIPATING_WIDGET__ = true;
 
     // ⚠️ ATENÇÃO: COLOQUE AQUI A URL QUE O EASYPANEL GERAR PARA O SEU NOVO APP
-    const APP_URL = "https://URL-DO-SEU-NOVO-APP-NO-EASYPANEL.easypanel.host"; 
+    const APP_URL = "http://200.225.231.17:3000"; 
 
     // ══════════════════════════════════════════════════════════════
     // PEGAR DADOS DO USUÁRIO LOGADO
@@ -62,7 +62,7 @@
     // INJETAR O BOTÃO NO MENU LATERAL
     // ══════════════════════════════════════════════════════════════
     function injectSidebarMenu() {
-        const sidebarList = document.querySelector('.menu-block');
+        const sidebarList = document.querySelector('nav.grid.overflow-y-scroll') || document.querySelector('nav');
         if (!sidebarList) return false;
 
         if (document.getElementById('brk-menu-participating')) return true;
