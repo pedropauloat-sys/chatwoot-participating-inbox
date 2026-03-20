@@ -9,9 +9,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!userId) {
         listEl.innerHTML = `
             <div class="empty">
-                <div class="icon">⚠️</div>
-                <div class="title">Usuário não identificado</div>
-                <div class="sub">Não foi possível carregar as conversas. Atualize o painel do Chatwoot.</div>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <div class="title">Usuário não logado</div>
+                <div class="sub">Não foi possível carregar as conversas da API. Verifique a autenticação.</div>
             </div>`;
         badgeEl.textContent = 'Erro';
         return;
@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (data.length === 0) {
             listEl.innerHTML = `
                 <div class="empty">
-                    <div class="icon">📭</div>
-                    <div class="title">Caixa limpa!</div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                    <div class="title">Você está em dia!</div>
                     <div class="sub">Você não está participando de nenhuma conversa aberta no momento.</div>
                 </div>`;
             return;

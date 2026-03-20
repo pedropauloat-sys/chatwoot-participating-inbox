@@ -175,7 +175,7 @@
 </script>
 
 <!-- ========================================================= -->
-<!-- 3. MÓDULO PARTICIPATING INBOX (Caixa Principal de Chat)   -->
+<!-- 3. MÓDULO PARTICIPATING INBOX (Menu Secundário)           -->
 <!-- ========================================================= -->
 <script>
 (function() {
@@ -185,7 +185,7 @@
     if (window.__BRK_PARTICIPATING_WIDGET__) return;
     window.__BRK_PARTICIPATING_WIDGET__ = true;
 
-    // ⚠️ Essa é a URL segura gerada pelo seu EasyPanel! (Foi removida a barra do final pra não quebrar a API)
+    // A URL segura do seu aplicativo front-end no EasyPanel
     const APP_URL = "https://n8n-chatwoot-participating-inbox.pqcilq.easypanel.host"; 
 
     function getAuthToken() {
@@ -199,52 +199,66 @@
         return null;
     }
 
+    let cachedUserId = null;
     async function getLoggedUserId() {
+        if (cachedUserId) return cachedUserId;
+
         try {
             const authData = localStorage.getItem('auth_data');
-            if (authData) return JSON.parse(authData).id || null;
+            if (authData) {
+                cachedUserId = JSON.parse(authData).id || null;
+                if (cachedUserId) return cachedUserId;
+            }
         } catch (e) {}
 
-        // Fallback robusto via API oficial - Ele pesquisa pelo ID se o localStorage for apagado
         const auth = getAuthToken();
         if (!auth || !auth['access-token']) return null;
         try {
             const res = await fetch('/api/v1/profile', { headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] } });
             if (!res.ok) return null;
             const data = await res.json();
-            return data.id || null;
-        } catch (err) {
-            return null;
-        }
+            cachedUserId = data.id || null;
+            return cachedUserId;
+        } catch (err) { return null; }
     }
 
     function openParticipatingInbox(userId) {
-        const mainContentArea = document.querySelector('.app-wrapper') || document.querySelector('main') || document.body;
+        // Agora ele acha estritamente a área de chat, sem sobrepor a barra lateral
+        const mainContentArea = document.querySelector('section.flex-1') || document.querySelector('.conversation-wrap') || document.querySelector('main');
+        if (!mainContentArea) return;
         
+        // Garante que o iframe fique confinado à essa área exata
+        mainContentArea.style.position = 'relative'; 
+
         const oldFrame = document.getElementById('brk-participating-iframe');
         if (oldFrame) oldFrame.remove();
 
+        const isDark = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
+        const theme = isDark ? 'dark' : 'light';
+
         const iframe = document.createElement('iframe');
         iframe.id = 'brk-participating-iframe';
-        iframe.src = `${APP_URL}?userId=${userId}`;
+        // Passa o theme (light ou dark) pela URL pra sua API
+        iframe.src = `${APP_URL}?userId=${userId}&theme=${theme}`;
         
         iframe.style.cssText = `
             position: absolute;
             top: 0;
-            left: 260px; /* Largura do menu do Chatwoot */
-            width: calc(100% - 260px);
-            height: 100vh;
+            left: 0;
+            width: 100%;
+            height: 100%;
             border: none;
-            background: var(--color-background, #f4f6f8);
+            background: ${isDark ? '#0f172a' : '#f8fafc'};
             z-index: 999;
         `;
 
         mainContentArea.appendChild(iframe);
         
-        const sidebarLinks = document.querySelectorAll('aside a, nav a');
+        // Remove a tela (iframe) se a pessoa clicar em outro menu nativo
+        const sidebarLinks = document.querySelectorAll('aside a, nav a, ul a');
         sidebarLinks.forEach(link => {
             link.addEventListener('click', function removeIframeOnNav(e) {
-                if(e.target.closest('#brk-menu-participating')) return; 
+                if(e.currentTarget.closest('#brk-menu-participating')) return; 
                 const fr = document.getElementById('brk-participating-iframe');
                 if (fr) fr.remove();
                 sidebarLinks.forEach(l => l.removeEventListener('click', removeIframeOnNav));
@@ -254,59 +268,60 @@
 
     let isInjecting = false;
 
-    async function injectSidebarMenu() {
+    function injectSidebarMenu() {
         if (isInjecting) return;
-
-        // Procura os conteineres da barra principal na nova e velha versão do Chatwoot
-        const sidebarList = document.querySelector('nav.grid.overflow-y-scroll') || 
-                            document.querySelector('.menu-block') || 
-                            document.querySelector('ul.menu-list') || 
-                            document.querySelector('aside nav') || 
-                            document.querySelector('nav');
-                            
-        // Aborta em telas de conf pra não dar choque no N8N
-        if (!sidebarList || location.pathname.includes('/settings') || location.pathname.includes('/super_admin')) return;
-        
+        if (location.pathname.includes('/settings') || location.pathname.includes('/super_admin')) return;
         if (document.getElementById('brk-menu-participating')) return;
+
+        // Ao invés de jogar no menu global, nós navegamos e achamos o grupo exato "Todas as conversas"
+        let allConvsLink = Array.from(document.querySelectorAll('a')).find(el => el.textContent && el.textContent.trim() === 'Todas as conversas');
+        if (!allConvsLink) return; // Se a nav de conversas estiver morta / fechada, aguarda.
+        
+        let sidebarList = allConvsLink.closest('ul');
+        if (!sidebarList) return;
 
         isInjecting = true;
 
-        const userId = await getLoggedUserId();
-        if (!userId) {
+        getLoggedUserId().then(userId => {
+            if (!userId) {
+                isInjecting = false;
+                return;
+            }
+
+            const li = document.createElement('li');
+            li.id = 'brk-menu-participating';
+            
+            // Copiada linha a linha do botão nativo "Menções" para herdar espaçamentos, texto, cor nativa de forma invisível
+            li.className = 'py-0.5 ltr:pl-3 rtl:pr-3 rtl:mr-3 ltr:ml-3 relative text-n-slate-11 child-item before:bg-n-slate-4 after:bg-transparent after:border-n-slate-4 before:left-0 rtl:before:right-0';
+            
+            li.innerHTML = `
+                <a href="#" class="flex h-8 items-center gap-2 px-2 py-1 rounded-lg max-w-[9.438rem] hover:bg-gradient-to-r from-transparent via-n-slate-3/70 to-n-slate-3/70 group" title="Participando">
+                    <div class="flex-1 truncate min-w-0">Participando</div>
+                </a>
+            `;
+
+            const a = li.querySelector('a');
+
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                
+                // Remove as classes de highlight (active) do botão nativo selecionado.
+                sidebarList.querySelectorAll('a').forEach(el => {
+                    el.classList.remove('text-n-blue-text', 'bg-n-alpha-2', 'active');
+                });
+                
+                // Aplica ao botão "Participando" o visual de selecionado nativo
+                a.classList.add('text-n-blue-text', 'bg-n-alpha-2', 'active');
+                
+                openParticipatingInbox(userId);
+            });
+
+            // Adiciona como o último irmão da lista de conversas
+            sidebarList.appendChild(li);
             isInjecting = false;
-            return;
-        }
-
-        const li = document.createElement('li');
-        li.id = 'brk-menu-participating';
-        
-        // Copia a estética e classes da versão atual do layout
-        const existingItem = sidebarList.querySelector('li') || sidebarList.querySelector('a');
-        li.className = existingItem ? existingItem.className.replace('active', '') : 'menu-item';
-        
-        li.innerHTML = `
-            <a href="#" class="button block" style="display: flex; align-items: center; padding: 6px 16px; margin: 4px 12px; border-radius: 8px; color: var(--color-text-main, #2b3a4a); font-size: 14px; font-weight: 500; text-decoration: none; transition: background 0.2s;">
-                <span style="margin-right: 12px; font-size: 16px;">💼</span>
-                <span style="flex: 1;">Participando</span>
-            </a>
-        `;
-
-        const a = li.querySelector('a');
-        a.addEventListener('mouseenter', () => a.style.background = 'var(--color-surface, rgba(0,0,0,0.05))');
-        a.addEventListener('mouseleave', () => a.style.background = 'transparent');
-
-        a.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.querySelectorAll('aside a.active, nav a.active, .bg-n-slate-2').forEach(el => el.classList.remove('active', 'bg-n-slate-2', 'dark:bg-n-solid-3'));
-            a.classList.add('active', 'bg-n-slate-2', 'dark:bg-n-solid-3');
-            openParticipatingInbox(userId);
         });
-
-        sidebarList.appendChild(li);
-        isInjecting = false;
     }
 
-    // Polling infinito pra superar o recarregamento virtual (SPA) do Vue/React
     setInterval(injectSidebarMenu, 1000);
 
 })();

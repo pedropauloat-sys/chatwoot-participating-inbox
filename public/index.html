@@ -4,43 +4,73 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Conversas Participando</title>
 <style>
-  /* ── DESIGN SYSTEM BRK ── */
+  /* ── DESIGN SYSTEM BRK (Chatwoot Native Match) ── */
   *{box-sizing:border-box;margin:0;padding:0}
-  :root{--bg:#0f172a;--bg2:#1a2233;--bg3:#1e2a3a;--border:#2d3a4d;--text:#e8eaf6;--sub:#8b95a5;--accent:#1f93ff;--danger:#ef4444;--success:#22c55e;--input:#131a27}
+  
+  :root {
+    --bg: #f8fafc;
+    --bg2: #f1f5f9;
+    --bg3: #ffffff;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --sub: #64748b;
+    --accent: #1f93ff;
+  }
+  html.dark {
+    --bg: #0f172a;
+    --bg2: #1e293b;
+    --bg3: #0f172a;
+    --border: #1e293b;
+    --text: #f8fafc;
+    --sub: #94a3b8;
+    --accent: #1f93ff;
+  }
+
   body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-  .container{max-width:900px;margin:0 auto;padding:24px}
-  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
-  .header h1{font-size:20px;display:flex;align-items:center;gap:10px}
-  .header h1 em{font-size:24px;font-style:normal}
-  .badge{font-size:11px;background:var(--bg3);padding:2px 8px;border-radius:10px;color:var(--sub)}
-  .btn{border:none;border-radius:8px;padding:10px 20px;font:600 13px -apple-system,system-ui,sans-serif;cursor:pointer;transition:all .15s; text-decoration: none; display: inline-block;}
+  .container{max-width:900px;margin:0 auto;padding:40px 24px}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px; border-bottom: 1px solid var(--border); padding-bottom: 20px;}
+  .header h1{font-size:22px;display:flex;align-items:center;gap:10px; font-weight: 600;}
+  .header h1 svg{width:24px;height:24px;color:var(--sub)}
+  .badge{font-size:12px;font-weight:600;background:var(--bg2);padding:4px 10px;border-radius:12px;color:var(--sub);border:1px solid var(--border)}
+  
+  .btn{border:none;border-radius:6px;padding:8px 16px;font:500 14px -apple-system,system-ui,sans-serif;cursor:pointer;transition:all .15s; text-decoration: none; display: inline-block;}
   .btn-primary{background:var(--accent);color:#fff}
   .btn-primary:hover{opacity:.9}
-  .empty{text-align:center;padding:60px 20px}
-  .empty .icon{font-size:48px;margin-bottom:12px}
-  .empty .title{font-size:16px;font-weight:600;margin-bottom:6px}
-  .empty .sub{font-size:13px;color:var(--sub)}
+  
+  .empty{text-align:center;padding:80px 20px; display:flex; flex-direction:column; align-items:center;}
+  .empty svg{width:64px;height:64px;color:var(--border);margin-bottom:16px}
+  .empty .title{font-size:18px;font-weight:600;margin-bottom:8px;color:var(--text)}
+  .empty .sub{font-size:14px;color:var(--sub);max-width:400px;line-height:1.5}
   
   /* ── LISTA DE CONVERSAS ── */
-  .table-header{display:grid;grid-template-columns:80px 1fr 150px;gap:12px;padding:8px 14px;font-size:11px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.04em}
-  .table-row{display:grid;grid-template-columns:80px 1fr 150px;gap:12px;padding:16px 14px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:8px;align-items:center;transition:background .15s, border .1s}
-  .table-row:hover{background:var(--bg2)}
-  .conv-id{font-weight:700;color:var(--accent);font-size:14px;}
-  .conv-contact{font-weight:600;font-size:14px;margin-bottom:4px;color:var(--text)}
-  .conv-snippet{font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .table-header{display:grid;grid-template-columns:80px 1fr 150px;gap:16px;padding:12px 16px;font-size:12px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.05em; border-bottom:1px solid var(--border); margin-bottom: 8px;}
+  .table-row{display:grid;grid-template-columns:80px 1fr 150px;gap:16px;padding:16px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:12px;align-items:center;transition:background .15s, border .1s, box-shadow .15s}
+  .table-row:hover{background:var(--bg2); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);}
+  .conv-id{font-weight:600;color:var(--sub);font-size:14px;}
+  .conv-contact{font-weight:600;font-size:15px;margin-bottom:4px;color:var(--text)}
+  .conv-snippet{font-size:14px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1><em>💼</em> Participando</h1>
+    <h1>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+      Participando
+    </h1>
     <span class="badge" id="badge-count">Carregando...</span>
   </div>
   
   <div id="list">
-    </div>
+  </div>
 </div>
 
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('theme') === 'dark') {
+    document.documentElement.classList.add('dark');
+  }
+</script>
 <script src="widget.js"></script>
 </body>
 </html>
