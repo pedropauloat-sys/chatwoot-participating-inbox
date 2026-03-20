@@ -1,0 +1,107 @@
+(function() {
+    'use strict';
+    
+    // Evita rodar o script duplicado
+    if (window.__BRK_PARTICIPATING_WIDGET__) return;
+    window.__BRK_PARTICIPATING_WIDGET__ = true;
+
+    // ⚠️ ATENÇÃO: COLOQUE AQUI A URL QUE O EASYPANEL GERAR PARA O SEU NOVO APP
+    const APP_URL = "https://URL-DO-SEU-NOVO-APP-NO-EASYPANEL.easypanel.host"; 
+
+    // ══════════════════════════════════════════════════════════════
+    // PEGAR DADOS DO USUÁRIO LOGADO
+    // ══════════════════════════════════════════════════════════════
+    function getLoggedUserId() {
+        try {
+            const authData = localStorage.getItem('auth_data');
+            if (authData) return JSON.parse(authData).id || null;
+        } catch (e) {
+            console.error('[BRK Participating] Erro:', e);
+        }
+        return null;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // ABRIR O NOSSO IFRAME
+    // ══════════════════════════════════════════════════════════════
+    function openParticipatingInbox(userId) {
+        const mainContentArea = document.querySelector('.app-wrapper') || document.querySelector('main') || document.body;
+        
+        const oldFrame = document.getElementById('brk-participating-iframe');
+        if (oldFrame) oldFrame.remove();
+
+        const iframe = document.createElement('iframe');
+        iframe.id = 'brk-participating-iframe';
+        iframe.src = `${APP_URL}?userId=${userId}`;
+        
+        iframe.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 260px; /* Largura do menu do Chatwoot */
+            width: calc(100% - 260px);
+            height: 100vh;
+            border: none;
+            background: var(--color-background, #f4f6f8);
+            z-index: 999;
+        `;
+
+        mainContentArea.appendChild(iframe);
+        
+        // Remove o iFrame se o usuário clicar em outro item do menu
+        const sidebarLinks = document.querySelectorAll('.menu-block a');
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', function removeIframeOnNav() {
+                const fr = document.getElementById('brk-participating-iframe');
+                if (fr) fr.remove();
+                sidebarLinks.forEach(l => l.removeEventListener('click', removeIframeOnNav));
+            });
+        });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // INJETAR O BOTÃO NO MENU LATERAL
+    // ══════════════════════════════════════════════════════════════
+    function injectSidebarMenu() {
+        const sidebarList = document.querySelector('.menu-block');
+        if (!sidebarList) return false;
+
+        if (document.getElementById('brk-menu-participating')) return true;
+
+        const userId = getLoggedUserId();
+        if (!userId) return false;
+
+        const li = document.createElement('li');
+        li.id = 'brk-menu-participating';
+        li.className = 'menu-item';
+        
+        li.innerHTML = `
+            <a href="#" class="button block" style="display: flex; align-items: center; padding: 6px 16px; margin: 4px 12px; border-radius: 8px; color: var(--color-text-main, #2b3a4a); font-size: 14px; font-weight: 500; text-decoration: none; transition: background 0.2s;">
+                <span style="margin-right: 12px; font-size: 16px;">💼</span>
+                <span style="flex: 1;">Participando</span>
+            </a>
+        `;
+
+        const a = li.querySelector('a');
+        a.addEventListener('mouseenter', () => a.style.background = 'var(--color-surface, rgba(0,0,0,0.05))');
+        a.addEventListener('mouseleave', () => a.style.background = 'transparent');
+
+        a.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.menu-item .active').forEach(el => el.classList.remove('active'));
+            a.classList.add('active');
+            openParticipatingInbox(userId);
+        });
+
+        sidebarList.appendChild(li);
+        return true;
+    }
+
+    let tries = 0;
+    const initInterval = setInterval(() => {
+        tries++;
+        if (injectSidebarMenu() || tries > 20) {
+            clearInterval(initInterval);
+        }
+    }, 1000);
+
+})();
