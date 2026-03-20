@@ -238,7 +238,7 @@
 
         const iframe = document.createElement('iframe');
         iframe.id = 'brk-participating-iframe';
-        // Passa o theme (light ou dark) pela URL pra sua API
+        // Passa o theme (light ou dark) pela URL
         iframe.src = `${APP_URL}?userId=${userId}&theme=${theme}`;
         
         iframe.style.cssText = `
@@ -254,7 +254,30 @@
 
         mainContentArea.appendChild(iframe);
         
-        // Remove a tela (iframe) se a pessoa clicar em outro menu nativo
+        // 1. Escuta comandos de redirecionamento vindos de dentro do Iframe
+        const messageHandler = function(e) {
+            if (e.data && e.data.action === 'brk_navigate') {
+                window.removeEventListener('message', messageHandler);
+                window.location.href = e.data.url;
+            }
+        };
+        window.addEventListener('message', messageHandler);
+
+        // 2. Olheiro: Se o usuário navegar para qualquer outra URL no Chatwoot, destrói o Iframe e libera a tela!
+        const initialUrl = location.href;
+        const navWatcher = setInterval(() => {
+            if (location.href !== initialUrl) {
+                const fr = document.getElementById('brk-participating-iframe');
+                if (fr) fr.remove();
+                
+                const btn = document.querySelector('#brk-menu-participating a');
+                if (btn) btn.classList.remove('text-n-blue-text', 'bg-n-alpha-2', 'active');
+                
+                clearInterval(navWatcher);
+            }
+        }, 300);
+        
+        // Proteção extra: remove se clicar nos menus da barra esquerda
         const sidebarLinks = document.querySelectorAll('aside a, nav a, ul a');
         sidebarLinks.forEach(link => {
             link.addEventListener('click', function removeIframeOnNav(e) {
