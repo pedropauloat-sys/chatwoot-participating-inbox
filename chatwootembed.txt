@@ -238,8 +238,8 @@
 
         const iframe = document.createElement('iframe');
         iframe.id = 'brk-participating-iframe';
-        // Passa o theme (light ou dark) pela URL
-        iframe.src = `${APP_URL}?userId=${userId}&theme=${theme}`;
+        // Passa o theme (light ou dark) pela URL e adiciona quebra-cache brutal para evitar cache viciado do Chrome
+        iframe.src = `${APP_URL}?userId=${userId}&theme=${theme}&v=${Date.now()}`;
         
         iframe.style.cssText = `
             position: absolute;
