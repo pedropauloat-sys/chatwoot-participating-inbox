@@ -274,7 +274,7 @@
         if (document.getElementById('brk-menu-participating')) return;
 
         // Ao invés de jogar no menu global, nós navegamos e achamos o grupo exato "Todas as conversas"
-        let allConvsLink = Array.from(document.querySelectorAll('a')).find(el => el.textContent && el.textContent.trim() === 'Todas as conversas');
+        let allConvsLink = document.querySelector('a[title="Todas as conversas"]') || document.querySelector('a[href$="/dashboard"]');
         if (!allConvsLink) return; // Se a nav de conversas estiver morta / fechada, aguarda.
         
         let sidebarList = allConvsLink.closest('ul');
