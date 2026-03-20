@@ -251,48 +251,54 @@
             background: ${isDark ? '#0f172a' : '#f8fafc'};
             z-index: 999;
         `;
-
-        mainContentArea.appendChild(iframe);
         
+        mainContentArea.appendChild(iframe);
+
         // 1. Escuta comandos de redirecionamento vindos de dentro do Iframe
         const messageHandler = function(e) {
             if (e.data && e.data.action === 'brk_navigate') {
                 window.removeEventListener('message', messageHandler);
-                // O Chatwoot usa Vue Router. Injetar um clique nativo garante que ele carregue a página sem piscar!
-                const phantomLink = document.createElement('a');
-                phantomLink.href = e.data.url;
-                phantomLink.style.display = 'none';
-                document.body.appendChild(phantomLink);
-                phantomLink.click();
-                setTimeout(() => phantomLink.remove(), 100);
+                window.location.assign(e.data.url);
             }
         };
         window.addEventListener('message', messageHandler);
 
-        // 2. Olheiro: Se o usuário navegar para qualquer outra URL no Chatwoot, destrói o Iframe e libera a tela!
+        // 2. Olheiro (URL e Cliques Genéricos)
         const initialUrl = location.href;
+        
+        // Remove totalmente o iFrame e eventos atrelados
+        function cleanupIframe() {
+            const fr = document.getElementById('brk-participating-iframe');
+            if (fr) fr.remove();
+            document.querySelectorAll('#brk-menu-participating a').forEach(el => el.classList.remove('text-n-blue-text', 'bg-n-alpha-2', 'active'));
+        }
+
         const navWatcher = setInterval(() => {
             if (location.href !== initialUrl) {
-                const fr = document.getElementById('brk-participating-iframe');
-                if (fr) fr.remove();
-                
-                const btn = document.querySelector('#brk-menu-participating a');
-                if (btn) btn.classList.remove('text-n-blue-text', 'bg-n-alpha-2', 'active');
-                
+                cleanupIframe();
                 clearInterval(navWatcher);
+                document.body.removeEventListener('click', bodyClickListener, true);
             }
         }, 300);
         
-        // Proteção extra: se clicar nas pastas ou na aba "Conversas" (que são divs), também limpa a tela para não ficar "emperrado"
-        const sidebarLinks = document.querySelectorAll('aside a, nav a, ul a, div[role="button"]');
-        sidebarLinks.forEach(link => {
-            link.addEventListener('click', function removeIframeOnNav(e) {
-                if(e.currentTarget.closest('#brk-menu-participating')) return; 
-                const fr = document.getElementById('brk-participating-iframe');
-                if (fr) fr.remove();
-                sidebarLinks.forEach(l => l.removeEventListener('click', removeIframeOnNav));
-            });
-        });
+        // 3. Delegation: Qualquer clique que mude algo na barra esquerda (Pastas, Menus) destrói o iFrame imediatamente
+        const bodyClickListener = function(e) {
+            // Se foi no botão Participando, a gente ignora pra ele poder abrir
+            if (e.target.closest('#brk-menu-participating')) return;
+            
+            // Se clicou na barra lateral (primária ou secundária)
+            if (e.target.closest('aside') || e.target.closest('nav') || e.target.closest('ul.sidebar-group-children')) {
+                // Se o que sofreu clique foi um botão/link
+                if (e.target.closest('a') || e.target.closest('[role="button"]') || e.target.closest('.cursor-pointer')) {
+                    cleanupIframe();
+                    clearInterval(navWatcher);
+                    document.body.removeEventListener('click', bodyClickListener, true);
+                }
+            }
+        };
+        
+        // Atacha no true (Capture) pra matar o iFrame ANTES do Chatwoot iniciar a animação de fechar a pasta!
+        document.body.addEventListener('click', bodyClickListener, true);
     }
 
     let isInjecting = false;
