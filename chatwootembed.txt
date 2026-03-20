@@ -239,7 +239,7 @@
         const iframe = document.createElement('iframe');
         iframe.id = 'brk-participating-iframe';
         // Passa o theme (light ou dark) pela URL e adiciona quebra-cache brutal para evitar cache viciado do Chrome
-        iframe.src = `${APP_URL}?userId=${userId}&theme=${theme}&v=${Date.now()}`;
+        iframe.src = `${APP_URL}?theme=${theme}&v=${Date.now()}`;
         
         iframe.style.cssText = `
             position: absolute;
@@ -251,6 +251,12 @@
             background: ${isDark ? '#0f172a' : '#f8fafc'};
             z-index: 999;
         `;
+        
+        // Passa os tokens livremente por postMessage seguro para o widget.js usar
+        iframe.onload = () => {
+            const auth = getAuthToken();
+            if (auth) iframe.contentWindow.postMessage({ action: 'init_auth', auth: auth }, '*');
+        };
         
         mainContentArea.appendChild(iframe);
 

@@ -42,51 +42,41 @@ async function handleAPI(req, res, url, method) {
   cors(res);
   if (method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-  // GET /api/conversations/participating/:userId
-  const match = url.match(/^\/api\/conversations\/participating\/(.+)$/);
+  // GET /api/conversations/participating
+  const match = url.match(/^\/api\/conversations\/participating\/?(.*)$/);
   
   if (match && method === 'GET') {
-    const userId = match[1];
+    const uToken = req.headers['x-user-token'];
+    const uClient = req.headers['x-user-client'];
+    const uUid = req.headers['x-user-uid'];
 
-    if (!CHATWOOT_URL || !API_TOKEN || !ACCOUNT_ID) {
-      return json(res, { error: 'Variáveis de ambiente do Chatwoot não configuradas no servidor.' }, 500);
+    if (!CHATWOOT_URL || !ACCOUNT_ID || !uToken) {
+      return json(res, { error: 'Autenticação de usuário ou CHATWOOT_URL pendente.' }, 401);
     }
 
     try {
-      // 1. Busca todas as conversas abertas usando o fetch nativo do Node 20
-      const convRes = await fetch(`${CHATWOOT_URL}/api/v1/accounts/${ACCOUNT_ID}/conversations?status=open`, {
-        headers: { 'api_access_token': API_TOKEN }
+      // 1. Busca DIRETAMENTE as conversas de participação do usuário usando as credenciais passadas pelo Chrome
+      // O Chatwoot nativamente entrega apenas as de participação através de "?conversation_type=participating"
+      const convRes = await fetch(`${CHATWOOT_URL.replace(/\/$/, "")}/api/v1/accounts/${ACCOUNT_ID}/conversations?status=open&conversation_type=participating`, {
+        headers: { 'access-token': uToken, 'client': uClient, 'uid': uUid }
       });
       
-      if (!convRes.ok) throw new Error('Falha ao comunicar com a API do Chatwoot');
+      if (!convRes.ok) throw new Error('Falha ao comunicar com a API do Chatwoot usando Token Repassado');
       const convData = await convRes.json();
       const allConversations = convData.data?.payload || [];
 
-      const participatingConversations = [];
-
-      // 2. Verifica os participantes em paralelo
-      await Promise.all(allConversations.map(async (conv) => {
-        const partRes = await fetch(`${CHATWOOT_URL}/api/v1/accounts/${ACCOUNT_ID}/conversations/${conv.id}/participants`, {
-          headers: { 'api_access_token': API_TOKEN }
-        });
-        
-        const participants = await partRes.json();
-        const isParticipant = participants.some(p => String(p.id) === String(userId));
-        
-        if (isParticipant) {
-          participatingConversations.push({
-            id: conv.id,
-            contact: conv.meta.sender.name,
-            lastMessage: conv.messages[0]?.content || 'Mídia / Anexo',
-            url: `/app/accounts/${ACCOUNT_ID}/conversations/${conv.id}`
-          });
-        }
+      // Mapeia e sanitiza as conversas para o Widget
+      const participatingConversations = allConversations.map(conv => ({
+          id: conv.id,
+          contact: conv.meta.sender.name,
+          lastMessage: conv.messages[0]?.content || 'Mídia / Anexo',
+          url: `/app/accounts/${ACCOUNT_ID}/conversations/${conv.id}`
       }));
 
       return json(res, participatingConversations);
       
     } catch (err) {
-      console.error('[CHATWOOT API ERROR]', err);
+      console.error('[CHATWOOT PASS-THROUGH ERROR]', err);
       return json(res, { error: 'Failed to fetch conversations' }, 500);
     }
   }
