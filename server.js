@@ -55,15 +55,31 @@ async function handleAPI(req, res, url, method) {
     }
 
     try {
-      // 1. Busca DIRETAMENTE as conversas de participação do usuário usando as credenciais passadas pelo Chrome
-      // O Chatwoot nativamente entrega apenas as de participação através de "?conversation_type=participating"
-      const convRes = await fetch(`${CHATWOOT_URL.replace(/\/$/, "")}/api/v1/accounts/${ACCOUNT_ID}/conversations?status=open&conversation_type=participating`, {
-        headers: { 'access-token': uToken, 'client': uClient, 'uid': uUid }
-      });
-      
-      if (!convRes.ok) throw new Error('Falha ao comunicar com a API do Chatwoot usando Token Repassado');
-      const convData = await convRes.json();
-      const allConversations = convData.data?.payload || [];
+      let page = 1;
+      let hasMore = true;
+      let allConversations = [];
+
+      // 1. Loop infinito seguro para varrer todas as páginas de participação do usuário
+      while (hasMore) {
+        const convRes = await fetch(`${CHATWOOT_URL.replace(/\/$/, "")}/api/v1/accounts/${ACCOUNT_ID}/conversations?status=open&conversation_type=participating&page=${page}`, {
+          headers: { 'access-token': uToken, 'client': uClient, 'uid': uUid }
+        });
+        
+        if (!convRes.ok) throw new Error(`Falha ao comunicar com a API na página ${page}`);
+        const convData = await convRes.json();
+        const payload = convData.data?.payload || [];
+        
+        allConversations = allConversations.concat(payload);
+        
+        // Se a página retornou menos de 25 itens (que é o limite padrão do Chatwoot), significa que chegamos na última página!
+        if (payload.length < 25) {
+          hasMore = false;
+        } else {
+          page++;
+          // Proteção contra chamadas infinitas caso o usuário tenha mais de 100 páginas (2500 tickets de participação)
+          if (page > 100) hasMore = false; 
+        }
+      }
 
       // Mapeia e sanitiza as conversas para o Widget
       const participatingConversations = allConversations.map(conv => ({
