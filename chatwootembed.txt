@@ -258,7 +258,13 @@
         const messageHandler = function(e) {
             if (e.data && e.data.action === 'brk_navigate') {
                 window.removeEventListener('message', messageHandler);
-                window.location.href = e.data.url;
+                // O Chatwoot usa Vue Router. Injetar um clique nativo garante que ele carregue a página sem piscar!
+                const phantomLink = document.createElement('a');
+                phantomLink.href = e.data.url;
+                phantomLink.style.display = 'none';
+                document.body.appendChild(phantomLink);
+                phantomLink.click();
+                setTimeout(() => phantomLink.remove(), 100);
             }
         };
         window.addEventListener('message', messageHandler);
@@ -277,8 +283,8 @@
             }
         }, 300);
         
-        // Proteção extra: remove se clicar nos menus da barra esquerda
-        const sidebarLinks = document.querySelectorAll('aside a, nav a, ul a');
+        // Proteção extra: se clicar nas pastas ou na aba "Conversas" (que são divs), também limpa a tela para não ficar "emperrado"
+        const sidebarLinks = document.querySelectorAll('aside a, nav a, ul a, div[role="button"]');
         sidebarLinks.forEach(link => {
             link.addEventListener('click', function removeIframeOnNav(e) {
                 if(e.currentTarget.closest('#brk-menu-participating')) return; 
