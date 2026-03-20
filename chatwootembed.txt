@@ -1,29 +1,223 @@
+<!-- ========================================================= -->
+<!-- 1. CARREGA O WIDGET DO SERVIDOR (Botões, Lógicas e API)   -->
+<!-- ========================================================= -->
+<script src="https://n8n-brk-buttons.pqcilq.easypanel.host/widget.js" defer></script>
+
+<!-- ========================================================= -->
+<!-- 2. MÓDULO ADMIN SETTINGS (Menu no Chatwoot - N8N)         -->
+<!-- ========================================================= -->
+<script>
 (function() {
     'use strict';
-    
-    // Evita rodar o script duplicado
-    if (window.__BRK_PARTICIPATING_WIDGET__) return;
-    window.__BRK_PARTICIPATING_WIDGET__ = true;
+    const URL_CONSTRUTOR = 'https://n8n-brk-buttons.pqcilq.easypanel.host';
+    let isPanelOpen = false;
+    let lastUrl = location.href;
 
-    // ⚠️ ATENÇÃO: COLOQUE AQUI A URL QUE O EASYPANEL GERAR PARA O SEU NOVO APP
-    const APP_URL = "http://200.225.231.17:3000"; 
+    function injectCss() {
+        if (document.getElementById('brk-mgr-css')) return;
+        const css = document.createElement('style');
+        css.id = 'brk-mgr-css';
+        css.textContent = `
+            #brk-mgr-panel { position: fixed; top: 0; right: 0; bottom: 0; background: var(--white, #fff); z-index: 100; display: none; flex-direction: column; } 
+            #brk-mgr-panel.visible { display: flex; } 
+            html.dark #brk-mgr-panel, body.dark #brk-mgr-panel { background: #1f2937; } 
+            #brk-mgr-iframe { width: 100%; height: 100%; border: none; display: block; background: transparent; }
+        `;
+        document.head.appendChild(css);
+    }
 
-    // ══════════════════════════════════════════════════════════════
-    // PEGAR DADOS DO USUÁRIO LOGADO
-    // ══════════════════════════════════════════════════════════════
-    function getLoggedUserId() {
-        try {
-            const authData = localStorage.getItem('auth_data');
-            if (authData) return JSON.parse(authData).id || null;
-        } catch (e) {
-            console.error('[BRK Participating] Erro:', e);
+    function getSidebarWidth() {
+        const asideSettings = document.querySelector('.settings-wrap aside, div[class*="settings"] aside');
+        const asideMain = document.querySelector('aside');
+        const target = asideSettings || asideMain;
+        return target ? target.getBoundingClientRect().right : 200;
+    }
+
+    function createPanel() {
+        if (document.getElementById('brk-mgr-panel')) return;
+        const panel = document.createElement('div');
+        panel.id = 'brk-mgr-panel';
+        panel.innerHTML = `<iframe id="brk-mgr-iframe" src="about:blank"></iframe>`;
+        document.body.appendChild(panel);
+    }
+
+    function getAuthToken() {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith('cw_d_session_info=')) {
+                try { return JSON.parse(decodeURIComponent(cookie.substring('cw_d_session_info='.length))); } catch (e) {}
+            }
         }
         return null;
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // ABRIR O NOSSO IFRAME
-    // ══════════════════════════════════════════════════════════════
+    async function checkIsAdmin() {
+        const auth = getAuthToken();
+        if (!auth || !auth['access-token']) return false;
+        try {
+            const res = await fetch('/api/v1/profile', { headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] } });
+            if (!res.ok) return false;
+            const data = await res.json();
+            return data.role === 'administrator' || data.type === 'SuperAdmin';
+        } catch (err) { return false; }
+    }
+
+    window.brkMgrOpen = function() {
+        isPanelOpen = true;
+        const panel = document.getElementById('brk-mgr-panel');
+        const iframe = document.getElementById('brk-mgr-iframe');
+        panel.style.left = getSidebarWidth() + 'px';
+        iframe.src = URL_CONSTRUTOR;
+        panel.classList.add('visible');
+    };
+
+    window.brkMgrClose = function() {
+        isPanelOpen = false;
+        const panel = document.getElementById('brk-mgr-panel');
+        const iframe = document.getElementById('brk-mgr-iframe');
+        if(panel) panel.classList.remove('visible');
+        if(iframe) iframe.src = 'about:blank';
+    };
+
+    window.brkMgrToggle = function() { isPanelOpen ? window.brkMgrClose() : window.brkMgrOpen(); };
+
+    function setupNavObserver() {
+        const closeOnNav = () => { if (isPanelOpen && location.href !== lastUrl) window.brkMgrClose(); lastUrl = location.href; };
+        window.addEventListener('popstate', closeOnNav);
+        const origPush = history.pushState; const origReplace = history.replaceState;
+        history.pushState = function() { origPush.apply(this, arguments); closeOnNav(); };
+        history.replaceState = function() { origReplace.apply(this, arguments); closeOnNav(); };
+    }
+
+    function injectIntoSettingsMenu() {
+        if (!location.pathname.includes('/settings')) return;
+        if (document.getElementById('brk-mgr-settings-item')) return;
+
+        const links = Array.from(document.querySelectorAll('a[href*="/settings/"]'));
+        if (links.length === 0) return;
+        const refLink = links.find(l => !l.classList.contains('active') && !l.getAttribute('aria-current')) || links[0];
+        if (!refLink) return;
+
+        const container = refLink.parentElement.tagName === 'LI' ? refLink.parentElement.parentElement : refLink.parentElement;
+
+        const myItem = refLink.cloneNode(true);
+        myItem.id = 'brk-mgr-settings-item';
+        myItem.href = '#';
+        myItem.classList.remove('active', 'font-semibold', 'bg-n-slate-2', 'dark:bg-n-solid-3', 'text-n-brand-600', 'dark:text-n-brand-500');
+        myItem.style.cursor = 'pointer';
+
+        const span = Array.from(myItem.querySelectorAll('*')).find(s => s.childNodes.length === 1 && s.textContent.trim().length > 2);
+        if (span) span.textContent = 'Construtor de Botões';
+        
+        const svg = myItem.querySelector('svg');
+        if (svg) svg.innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline>';
+        
+        myItem.onclick = function(e) { e.preventDefault(); window.brkMgrToggle(); };
+
+        if (refLink.parentElement.tagName === 'LI') {
+            const li = document.createElement('li'); li.className = refLink.parentElement.className; li.appendChild(myItem); container.appendChild(li);
+        } else { container.appendChild(myItem); }
+    }
+
+    window.addEventListener('message', async function(e) {
+        if (e.data && (e.data.action === 'GET_AGENTS' || e.data.action === 'GET_TEAMS')) {
+            const auth = getAuthToken();
+            if (!auth) return;
+            try {
+                const accountMatch = location.pathname.match(/\/accounts\/(\d+)/);
+                const accountId = accountMatch ? accountMatch[1] : 1;
+                if (e.data.action === 'GET_AGENTS') {
+                    const res = await fetch('/api/v1/accounts/' + accountId + '/agents', {
+                        headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const iframe = document.getElementById('brk-mgr-iframe');
+                        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ action: 'SET_AGENTS', agents: data }, '*');
+                    }
+                }
+                
+                if (e.data.action === 'GET_TEAMS') {
+                    const resTeams = await fetch('/api/v1/accounts/' + accountId + '/teams', {
+                        headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] }
+                    });
+                    if (resTeams.ok) {
+                        const dataTeams = await resTeams.json();
+                        for (var ti = 0; ti < dataTeams.length; ti++) {
+                            try {
+                                var resMembers = await fetch('/api/v1/accounts/' + accountId + '/teams/' + dataTeams[ti].id + '/team_members', {
+                                    headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] }
+                                });
+                                if (resMembers.ok) {
+                                    dataTeams[ti].members = await resMembers.json();
+                                }
+                            } catch(err) { dataTeams[ti].members = []; }
+                        }
+                        const iframe = document.getElementById('brk-mgr-iframe');
+                        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ action: 'SET_TEAMS', teams: dataTeams }, '*');
+                    }
+                }
+            } catch (err) { }
+        }
+    });
+
+    async function init() {
+        const isAdmin = await checkIsAdmin();
+        if (!isAdmin) return; 
+        injectCss(); createPanel(); setupNavObserver();
+        setInterval(injectIntoSettingsMenu, 1000);
+    }
+    
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else setTimeout(init, 500);
+})();
+</script>
+
+<!-- ========================================================= -->
+<!-- 3. MÓDULO PARTICIPATING INBOX (Caixa Principal de Chat)   -->
+<!-- ========================================================= -->
+<script>
+(function() {
+    'use strict';
+    
+    // Evita rodar o script duplicado e causar lentidão
+    if (window.__BRK_PARTICIPATING_WIDGET__) return;
+    window.__BRK_PARTICIPATING_WIDGET__ = true;
+
+    // ⚠️ Essa é a URL segura gerada pelo seu EasyPanel! (Foi removida a barra do final pra não quebrar a API)
+    const APP_URL = "https://n8n-chatwoot-participating-inbox.pqcilq.easypanel.host"; 
+
+    function getAuthToken() {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith('cw_d_session_info=')) {
+                try { return JSON.parse(decodeURIComponent(cookie.substring('cw_d_session_info='.length))); } catch (e) {}
+            }
+        }
+        return null;
+    }
+
+    async function getLoggedUserId() {
+        try {
+            const authData = localStorage.getItem('auth_data');
+            if (authData) return JSON.parse(authData).id || null;
+        } catch (e) {}
+
+        // Fallback robusto via API oficial - Ele pesquisa pelo ID se o localStorage for apagado
+        const auth = getAuthToken();
+        if (!auth || !auth['access-token']) return null;
+        try {
+            const res = await fetch('/api/v1/profile', { headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] } });
+            if (!res.ok) return null;
+            const data = await res.json();
+            return data.id || null;
+        } catch (err) {
+            return null;
+        }
+    }
+
     function openParticipatingInbox(userId) {
         const mainContentArea = document.querySelector('.app-wrapper') || document.querySelector('main') || document.body;
         
@@ -47,10 +241,10 @@
 
         mainContentArea.appendChild(iframe);
         
-        // Remove o iFrame se o usuário clicar em outro item do menu
-        const sidebarLinks = document.querySelectorAll('.menu-block a');
+        const sidebarLinks = document.querySelectorAll('aside a, nav a');
         sidebarLinks.forEach(link => {
-            link.addEventListener('click', function removeIframeOnNav() {
+            link.addEventListener('click', function removeIframeOnNav(e) {
+                if(e.target.closest('#brk-menu-participating')) return; 
                 const fr = document.getElementById('brk-participating-iframe');
                 if (fr) fr.remove();
                 sidebarLinks.forEach(l => l.removeEventListener('click', removeIframeOnNav));
@@ -58,21 +252,37 @@
         });
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // INJETAR O BOTÃO NO MENU LATERAL
-    // ══════════════════════════════════════════════════════════════
-    function injectSidebarMenu() {
-        const sidebarList = document.querySelector('nav.grid.overflow-y-scroll') || document.querySelector('nav');
-        if (!sidebarList) return false;
+    let isInjecting = false;
 
-        if (document.getElementById('brk-menu-participating')) return true;
+    async function injectSidebarMenu() {
+        if (isInjecting) return;
 
-        const userId = getLoggedUserId();
-        if (!userId) return false;
+        // Procura os conteineres da barra principal na nova e velha versão do Chatwoot
+        const sidebarList = document.querySelector('nav.grid.overflow-y-scroll') || 
+                            document.querySelector('.menu-block') || 
+                            document.querySelector('ul.menu-list') || 
+                            document.querySelector('aside nav') || 
+                            document.querySelector('nav');
+                            
+        // Aborta em telas de conf pra não dar choque no N8N
+        if (!sidebarList || location.pathname.includes('/settings') || location.pathname.includes('/super_admin')) return;
+        
+        if (document.getElementById('brk-menu-participating')) return;
+
+        isInjecting = true;
+
+        const userId = await getLoggedUserId();
+        if (!userId) {
+            isInjecting = false;
+            return;
+        }
 
         const li = document.createElement('li');
         li.id = 'brk-menu-participating';
-        li.className = 'menu-item';
+        
+        // Copia a estética e classes da versão atual do layout
+        const existingItem = sidebarList.querySelector('li') || sidebarList.querySelector('a');
+        li.className = existingItem ? existingItem.className.replace('active', '') : 'menu-item';
         
         li.innerHTML = `
             <a href="#" class="button block" style="display: flex; align-items: center; padding: 6px 16px; margin: 4px 12px; border-radius: 8px; color: var(--color-text-main, #2b3a4a); font-size: 14px; font-weight: 500; text-decoration: none; transition: background 0.2s;">
@@ -87,21 +297,17 @@
 
         a.addEventListener('click', (e) => {
             e.preventDefault();
-            document.querySelectorAll('.menu-item .active').forEach(el => el.classList.remove('active'));
-            a.classList.add('active');
+            document.querySelectorAll('aside a.active, nav a.active, .bg-n-slate-2').forEach(el => el.classList.remove('active', 'bg-n-slate-2', 'dark:bg-n-solid-3'));
+            a.classList.add('active', 'bg-n-slate-2', 'dark:bg-n-solid-3');
             openParticipatingInbox(userId);
         });
 
         sidebarList.appendChild(li);
-        return true;
+        isInjecting = false;
     }
 
-    let tries = 0;
-    const initInterval = setInterval(() => {
-        tries++;
-        if (injectSidebarMenu() || tries > 20) {
-            clearInterval(initInterval);
-        }
-    }, 1000);
+    // Polling infinito pra superar o recarregamento virtual (SPA) do Vue/React
+    setInterval(injectSidebarMenu, 1000);
 
 })();
+</script>
