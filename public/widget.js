@@ -45,8 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="conv-snippet">${conv.lastMessage}</div>
                         </div>
                         <div style="text-align:right; display: flex; justify-content: flex-end; gap: 8px;">
-                            <button onclick="removeParticipant(${conv.id})" class="btn" style="background:transparent; color:#ef4444; border:1px solid #fca5a5; padding: 4px 8px; font-size: 11px;">Sair</button>
                             <button onclick="window.parent.postMessage({action:'brk_navigate', url:'${conv.url}'}, '*')" class="btn btn-primary">Acompanhar</button>
+                            <button onclick="showRemoveModal(${conv.id})" class="btn" style="background:transparent; color:#ef4444; border:1px solid #fca5a5; padding: 4px 8px; font-size: 11px;">Sair</button>
                         </div>
                     </div>`;
                 });
@@ -67,9 +67,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-window.removeParticipant = async function(convId) {
-    if (!confirm('Tem certeza que deseja PARAR DE PARTICIPAR desta conversa? Ela sumirá da sua lista.')) return;
+window.showRemoveModal = function(convId) {
+    let overlay = document.getElementById('brk-modal-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'brk-modal-overlay';
+        overlay.innerHTML = `
+            <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999;">
+                <div id="brk-modal-box" style="padding:24px; border-radius:8px; max-width:350px; width:100%; text-align:left; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+                    <h3 style="margin-top:0; font-size:16px; color:inherit;">Parar de Participar</h3>
+                    <p style="font-size:14px; opacity:0.8; margin-bottom:24px;">Tem certeza que deseja sair desta conversa? Ela sumirá da sua lista.</p>
+                    <div style="display:flex; justify-content:flex-end; gap:8px;">
+                        <button onclick="document.getElementById('brk-modal-overlay').style.display='none'" class="btn" style="background:transparent; border:1px solid #94a3b8; color:inherit;">Cancelar</button>
+                        <button id="brk-confirm-btn" class="btn" style="background:#ef4444; color:white; border:none;">Sim, Sair</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    }
     
+    const modalBox = document.getElementById('brk-modal-box');
+    const isDark = document.documentElement.classList.contains('dark');
+    modalBox.style.background = isDark ? '#1e293b' : '#ffffff';
+    modalBox.style.color = isDark ? '#f8fafc' : '#0f172a';
+    
+    overlay.style.display = 'flex';
+    
+    const confirmBtn = document.getElementById('brk-confirm-btn');
+    confirmBtn.onclick = () => {
+        overlay.style.display = 'none';
+        executeRemoveParticipant(convId);
+    };
+};
+
+window.executeRemoveParticipant = async function(convId) {
     const urlParams = new URLSearchParams(window.location.search);
     const userId = urlParams.get('userId');
 
