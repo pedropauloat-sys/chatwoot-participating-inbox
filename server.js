@@ -42,6 +42,37 @@ async function handleAPI(req, res, url, method) {
   cors(res);
   if (method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
+  // DELETE /api/conversations/:convId/participating/:userId
+  const matchDel = url.match(/^\/api\/conversations\/([0-9]+)\/participating\/([0-9]+)$/);
+  if (matchDel && method === 'DELETE') {
+    const convId = matchDel[1];
+    const participantId = matchDel[2];
+    const uToken = req.headers['x-user-token'];
+    const uClient = req.headers['x-user-client'];
+    const uUid = req.headers['x-user-uid'];
+
+    if (!CHATWOOT_URL || !ACCOUNT_ID || !uToken) {
+      return json(res, { error: 'Auth failed' }, 401);
+    }
+
+    try {
+      const delRes = await fetch(`${CHATWOOT_URL.replace(/\/$/, "")}/api/v1/accounts/${ACCOUNT_ID}/conversations/${convId}/participants`, {
+        method: 'DELETE',
+        headers: { 
+          'access-token': uToken, 'client': uClient, 'uid': uUid,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_ids: [parseInt(participantId)] })
+      });
+      
+      if (!delRes.ok) throw new Error('Chatwoot API error on Delete');
+      return json(res, { success: true });
+    } catch (err) {
+      console.error('[CHATWOOT DELETE ERROR]', err);
+      return json(res, { error: 'Failed to delete' }, 500);
+    }
+  }
+
   // GET /api/conversations/participating
   const match = url.match(/^\/api\/conversations\/participating\/?(.*)$/);
   

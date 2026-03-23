@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('message', async (e) => {
         if (e.data && e.data.action === 'init_auth' && e.data.auth) {
             const auth = e.data.auth;
+            window.currentAuth = auth; // Salva para funções secundárias
             
             try {
                 // Chama nossa API node repassando a credencial do Chatwoot do usuário logado
@@ -37,13 +38,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Desenha as linhas da tabela
                 data.forEach(conv => {
                     html += `
-                    <div class="table-row">
+                    <div class="table-row" id="row-${conv.id}">
                         <div class="conv-id">#${conv.id}</div>
                         <div style="min-width:0">
                             <div class="conv-contact">${conv.contact}</div>
                             <div class="conv-snippet">${conv.lastMessage}</div>
                         </div>
-                        <div style="text-align:right">
+                        <div style="text-align:right; display: flex; justify-content: flex-end; gap: 8px;">
+                            <button onclick="removeParticipant(${conv.id})" class="btn" style="background:transparent; color:#ef4444; border:1px solid #fca5a5; padding: 4px 8px; font-size: 11px;">Sair</button>
                             <button onclick="window.parent.postMessage({action:'brk_navigate', url:'${conv.url}'}, '*')" class="btn btn-primary">Acompanhar</button>
                         </div>
                     </div>`;
@@ -64,3 +66,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+window.removeParticipant = async function(convId) {
+    if (!confirm('Tem certeza que deseja PARAR DE PARTICIPAR desta conversa? Ela sumirá da sua lista.')) return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('userId');
+
+    try {
+        const response = await fetch(`/api/conversations/${convId}/participating/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'x-user-token': window.currentAuth['access-token'],
+                'x-user-client': window.currentAuth['client'],
+                'x-user-uid': window.currentAuth['uid']
+            }
+        });
+        
+        if (response.ok) {
+            document.getElementById(`row-${convId}`).remove();
+            let badge = document.getElementById('badge-count');
+            let num = parseInt(badge.textContent);
+            if(!isNaN(num) && num > 0) badge.textContent = (num - 1) + " conversas";
+        } else {
+            alert('Ocorreu um erro ao tentar sair da conversa.');
+        }
+    } catch (e) {
+        alert('Erro de conexão com o servidor ao remover.');
+    }
+}
