@@ -61,7 +61,8 @@ async function handleAPI(req, res, url, method) {
 
       // 1. Loop infinito seguro para varrer todas as páginas de participação do usuário
       while (hasMore) {
-        const convRes = await fetch(`${CHATWOOT_URL.replace(/\/$/, "")}/api/v1/accounts/${ACCOUNT_ID}/conversations?status=open&conversation_type=participating&page=${page}`, {
+        // Usa status=all para puxar tanto as abertas quanto as resolvidas/fechadas
+        const convRes = await fetch(`${CHATWOOT_URL.replace(/\/$/, "")}/api/v1/accounts/${ACCOUNT_ID}/conversations?status=all&conversation_type=participating&page=${page}`, {
           headers: { 'access-token': uToken, 'client': uClient, 'uid': uUid }
         });
         
